@@ -9,10 +9,10 @@ import {
     NodeProps
 } from '@xyflow/react';
 import {
-    CloseOutlined
+    CloseOutlined, 
+    CheckOutlined
 } from '@ant-design/icons';
 import { Task } from './modellerTypes';
-
 
 const TaskComponentNode = (props: NodeProps) => {
     const { setNodes } = useReactFlow();
@@ -36,7 +36,8 @@ const TaskComponentNode = (props: NodeProps) => {
                 isConnectable={true}
             />
             <button
-                onClick={() => {
+                onClick={(event) => {
+                    event.stopPropagation();
                     setNodes((nodes) => nodes.filter((node) => node.id !== id));
                 }}
                 className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 z-10 
@@ -45,11 +46,43 @@ const TaskComponentNode = (props: NodeProps) => {
                 <CloseOutlined className="text-gray-400" />
             </button>
             <TaskComponent task={task}></TaskComponent>
-            <Handle
-                type="source"
-                position={Position.Right}
-                isConnectable={true}
-            />
+            {task.type === "approvalTask" ? (
+                <>
+                    <CheckOutlined 
+                        className='absolute top-[22%] right-[5px]' 
+                        style={{
+                            color: "#47fa00"
+                        }}
+                    ></CheckOutlined>
+                    <CloseOutlined 
+                        className='absolute top-[62%] right-[5px]'
+                        style={{
+                            color: "#fa0000"
+                        }}
+                    ></CloseOutlined>
+                    <Handle
+                        type="source"
+                        position={Position.Right}
+                        id="approved"
+                        style={{ top: "30%" }}
+                        isConnectable={true}
+                    />
+                    <Handle
+                        type="source"
+                        position={Position.Right}
+                        id="rejected"
+                        style={{ top: "70%" }}
+                        isConnectable={true}
+                    />
+                </>
+            ) : (
+                <Handle
+                    type="source"
+                    position={Position.Right}
+                    isConnectable={true}
+                />
+            )}
+            
         </div>
     )
 }

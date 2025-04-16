@@ -5,7 +5,8 @@ enum PROPERTIES_TYPES {
     SINGLE_SELECT = "single_select",
     MULTI_SELECT = "multi_select",
     NUMBER = "number",
-    BOOLEN = "boolean"
+    BOOLEN = "boolean",
+    VARIABLE = "variable"
 };
 
 export default PROPERTIES_TYPES
