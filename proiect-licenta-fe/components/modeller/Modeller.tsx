@@ -196,6 +196,18 @@ const ModellerWithoutProvider = () => {
         ]
         setInitialNodes(initialComponents);
         setNodes((nodes) => [...initialComponents])
+
+        componentsWithoutStartTask.push({
+          type: "conditionalTask",
+          label: "Conditional Task",
+          properties: {
+            condition: {
+              label: "Condition",
+              type: PROPERTIES_TYPES.CONDITION,
+              optionsType: VARIABLES_TYPES.FORM
+            }
+          }
+        })
         setTasks(componentsWithoutStartTask)
       })
       .catch(error => {
@@ -221,7 +233,17 @@ const ModellerWithoutProvider = () => {
       if (focusedNode) {
         if (focusedNode.data && focusedNode.data.task.properties) {
           const taskProperties: any = focusedNode.data.task.properties;
-          Object.entries(taskProperties).forEach(([propertyKey, property]: any, index:any) => {
+          const taskPropertiesList: any = Object.entries(taskProperties);
+          let formId: any;
+          taskPropertiesList.forEach(([propertyKey, property]: any, index:any) => {
+            if (property.type === PROPERTIES_TYPES.SINGLE_SELECT 
+              && ((property.initialOptionTypes && property.initialOptionTypes.includes("forms")) 
+                || property.optionsType && property.optionsType === VARIABLES_TYPES.FORM)
+              && property.value && property.value !== "") {
+              formId = property.value;
+            }
+          })
+          taskPropertiesList.forEach(([propertyKey, property]: any, index:any) => {
             if(property.type === PROPERTIES_TYPES.VARIABLE) {
               setGlobalOptions((globalOptions:any) => {
                 if(property.variableType) {
@@ -230,10 +252,16 @@ const ModellerWithoutProvider = () => {
                     if(optionAlreadyExisting) {
                       optionsForType = optionsForType.filter((option) => option.variableName !== property.value)
                     }
-                    optionsForType.push({
+                    const optionForType: any = {
                       taskId: taskIdForDrawer,
                       variableName: property.value.trim()
-                    })
+                    };
+
+                    if(formId) {
+                      optionForType.formId = formId;
+                    }
+
+                    optionsForType.push(optionForType);
 
                     globalOptions[property.variableType] = optionsForType;
                     return {
@@ -393,8 +421,7 @@ const ModellerWithoutProvider = () => {
           setCurrentWorkflowId(responseBody.id)
         }
       } catch (err) {
-      } finally {
-      }
+      } 
     }
 
     const getWorkflowById = async (workflowId: number) => {

@@ -1,5 +1,6 @@
 import React , {
-    useState
+    useState,
+    useEffect
 } from 'react'
 import PROPERTIES_TYPES from './drawerPropertiesTypes';
 import VARIABLES_TYPES from './variableTypes';
@@ -9,15 +10,96 @@ import {
     Typography,
     Select, 
     InputNumber,
-    Switch
+    Switch,
+    Flex
 } from 'antd';
 import '@ant-design/v5-patch-for-react-19';
+import FORM_FIELD_TYPES, { FormField, FormFieldMap, Option } from '../form-creation/formTypes';
 
 const { Text } = Typography;
 const { TextArea } = Input;
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+const operations = {
+    isOptions: [
+        {
+            label: "is",
+            value: "is"
+        },
+        {
+            label: "is not",
+            value: "is_not"
+        }
+    ],
+    containsOptions: [
+        {
+            label: "contains",
+            value: "contains"
+        },
+        {
+            label: "not contains",
+            value: "not_contains"
+        }
+    ], 
+    numberOptions: [
+        {
+            label: "=",
+            value: "="
+        },
+        {
+            label: "≠",
+            value: "!="
+        },
+        {
+            label: ">",
+            value: ">"
+        },
+        {
+            label: "<",
+            value: "<"
+        },
+        {
+            label: "≥",
+            value: ">="
+        },
+        {
+            label: "≤",
+            value: "<="
+        }
+    ]
+}
+
 
 const DrawerForm = (props: any) => {
     const {taskId, nodes, setNodes, edges, globalOptions, setGlobalOptions} = props;
+    const [formFieldForCondition, setFormFieldForCondition] = useState<FormFieldMap>({});
+    const [optionsFieldForm, setOptionsFieldForm] = useState<Option[]>([]);
+    const [formId, setFormId] = useState("");
+
+    useEffect(() => {
+        if (formId !== "") {
+            fetch(`${API_URL}/form/${formId}`)
+            .then(response => response.json())
+            .then(responseBody => {
+                const fields: any = {};
+                const options: any = [];
+                if (responseBody.pages) {
+                    const {pages} = responseBody
+                    pages.forEach((page: []) => {
+                        page.forEach((field: FormField) => {
+                            fields[field.id ? field.id?.toString() : field.label] = field;
+                            options.push({
+                                label: field.label,
+                                value: field.id?.toString()
+                            })
+                        })
+                    });
+                    setFormFieldForCondition(fields)
+                }
+                setOptionsFieldForm(options);
+            })
+        }
+    }, [formId]);
 
     const getForm = (properties: any, setNodes: any, taskId: any) => {
         const propertiesArray = Object.entries(properties).sort(([propertyKey1, property1]: any, [propertyKey2, property2]: any) => {
@@ -41,7 +123,7 @@ const DrawerForm = (props: any) => {
                                 {getComponentByType(property, propertyKey, setNodes, taskId)}
                                 <div className='mb-4'></div>
                             </div>
-                            {property.next && property.value ? 
+                            {property.next && property.value && property.next[property.value] ? 
                             (getNextPropertiesComponents(property.next[property.value], property.value, setNodes, taskId))
                             : (<div></div>)}
                         </div>
@@ -91,6 +173,10 @@ const DrawerForm = (props: any) => {
     }
 
     const onChangeHandler = (e: any, propertyKey: any, setNodes: any, taskId: any, property: any) => {
+        onChangeHandlerWithConditionProperty(e, propertyKey, setNodes, taskId, property, null);
+    }
+
+    const onChangeHandlerWithConditionProperty = (e: any, propertyKey: any, setNodes: any, taskId: any, property: any, conditionPropertyType:any) => {
         setNodes((nodes: any) =>         
             nodes.map((node: any) => {
                 if(node.id === taskId) {
@@ -101,7 +187,12 @@ const DrawerForm = (props: any) => {
                         nextProperties[propertyKey] = {...nextProperties[propertyKey], value: getInputValue(property, e)}
                         propertiesChanged[property.parentKey] = {...parentProperty, next: {...nextProperties}}
                     } else {
-                        propertiesChanged[propertyKey] = {...property, value: getInputValue(property, e)}
+                        propertiesChanged[propertyKey] = {
+                            ...property, 
+                            value: property.type === PROPERTIES_TYPES.CONDITION 
+                                ? getConditionPropertyValue(property, e, conditionPropertyType) 
+                                : getInputValue(property, e)
+                        }
                     }
                     return {
                         ...node, 
@@ -130,6 +221,30 @@ const DrawerForm = (props: any) => {
         ? e.target.value.trim() 
         : e;
 
+    }
+
+    const getConditionPropertyValue = (property: any, e:any, conditionPropertyType: any) => {
+        const {value} = property;
+        switch(conditionPropertyType) {
+            case "formId":
+                value.formId = e;
+                if (e !== "") {
+                    setFormId(e);
+                }
+                break;
+            case "leftOperand":
+                value.leftOperand = e;
+                value.operation = "";
+                value.rightOperand = ""
+                break;
+            case "operation":
+                value.operation = e;
+                break;
+            case "rightOperand":
+                value.rightOperand = e.target ? e.target.value.trim() : e;
+                break;
+        }
+        return value;
     }
 
     const getComponentByType = (property: TaskProperty, propertyKey: any, setNodes: any, taskId: any) => {
@@ -166,6 +281,7 @@ const DrawerForm = (props: any) => {
                 property.value = property.value ? property.value : "";
                 return (
                     <Select
+                        showSearch
                         value={(property.value as string)}
                         onChange={(e) => onChangeHandler(e, propertyKey, setNodes, taskId, property)}
                         options={property.optionsType ? getOptionsForType(property.optionsType, taskId, property.options) : property.options }
@@ -180,6 +296,51 @@ const DrawerForm = (props: any) => {
                         onChange={(e) => onChangeHandler(e, propertyKey, setNodes, taskId, property)}
                         options={property.optionsType ? getOptionsForType(property.optionsType, taskId, property.options) : property.options}
                     />
+                )
+            case PROPERTIES_TYPES.CONDITION:
+                property.value = property.value ? property.value : {
+                    formId: "",
+                    leftOperand: optionsFieldForm.length > 0 ? optionsFieldForm[0].value : "",
+                    operation: "",
+                    rightOperand: ""
+                };
+                property.options = []
+                return (
+                    <Flex vertical gap={15} className='pl-2'>
+                        <Flex vertical gap={2}>
+                            <Text className='mb-2'>Select form:</Text>
+                            <Select
+                                showSearch
+                                className='w-[150px]'
+                                value={(property.value.formId as string)}
+                                onChange={(e) => onChangeHandlerWithConditionProperty(e, propertyKey, setNodes, taskId, property, "formId")}
+                                options={property.optionsType ? getOptionsForType(property.optionsType, taskId, property.options) : property.options}
+                            />
+                        </Flex>
+                        <Flex vertical>
+                            <Text className='mb-2'>Define condition:</Text>
+                            <Flex vertical>
+                                <Select
+                                    showSearch
+                                    className='w-[170px]'
+                                    value={(property.value.leftOperand as string)}
+                                    disabled={property.value.formId === ""}
+                                    onChange={(e) => onChangeHandlerWithConditionProperty(e, propertyKey, setNodes, taskId, property, "leftOperand")}
+                                    options={ optionsFieldForm }
+                                />
+                                <Flex>
+                                    <Select
+                                        className='w-[120px]'
+                                        value={(property.value.operation as string)}
+                                        disabled={property.value.leftOperand === ""}
+                                        onChange={(e) => onChangeHandlerWithConditionProperty(e, propertyKey, setNodes, taskId, property, "operation")}
+                                        options={ property.value.leftOperand !== "" ? getOperationByFieldType(formFieldForCondition[property.value.leftOperand].type) : []}
+                                    />
+                                    {getRightOperandViewByFieldType(property.value.leftOperand !== "" ? formFieldForCondition[property.value.leftOperand].type: "", propertyKey, property)}
+                                </Flex>
+                            </Flex>
+                        </Flex>
+                    </Flex>
                 )
             case PROPERTIES_TYPES.NUMBER:
                 property.value = property.value ? property.value : 0;
@@ -221,7 +382,7 @@ const DrawerForm = (props: any) => {
                                                 .map((option: any) => {
                                                     return {
                                                         label: option.variableName,
-                                                        value: option.variableName
+                                                        value: option.formId ? option.formId : option.variableName
                                                     }
                                                 })
                                                 ;
@@ -230,6 +391,88 @@ const DrawerForm = (props: any) => {
             return options;
         }
         return otherOptions
+    }
+
+    const getOperationByFieldType = (type: any) => {
+        switch(type) {
+            case FORM_FIELD_TYPES.SINGLE_TEXT:
+                return operations.isOptions.concat(operations.containsOptions)
+            case FORM_FIELD_TYPES.MULTI_TEXT:
+                return operations.containsOptions
+            case FORM_FIELD_TYPES.SINGLE_SELECT:
+                return operations.isOptions
+            case FORM_FIELD_TYPES.MULTI_SELECT:
+                return operations.containsOptions
+            case FORM_FIELD_TYPES.TEXT_AREA:
+                return operations.isOptions.concat(operations.containsOptions)
+            case FORM_FIELD_TYPES.NUMBER:
+                return operations.numberOptions
+            case FORM_FIELD_TYPES.BOOLEN:
+                return operations.isOptions
+        }
+    }
+
+    const getRightOperandViewByFieldType = (type: any, propertyKey: any, property: any) => {
+        switch(type) {
+            case FORM_FIELD_TYPES.SINGLE_TEXT:
+            case FORM_FIELD_TYPES.MULTI_TEXT:
+            case FORM_FIELD_TYPES.TEXT_AREA:
+                return (
+                <Input
+                    allowClear
+                    className='w-[180px]'
+                    value={(property.value.rightOperand as string)}
+                    onChange={(e) => onChangeHandlerWithConditionProperty(e, propertyKey, setNodes, taskId, property, "rightOperand")}
+                ></Input>)
+            case FORM_FIELD_TYPES.SINGLE_SELECT:
+            case FORM_FIELD_TYPES.MULTI_SELECT:
+                return (
+                    <Select
+                        className='w-[150px]'
+                        value={(property.value.rightOperand as string)}
+                        disabled={property.value.leftOperand === ""}
+                        onChange={(e) => onChangeHandlerWithConditionProperty(e, propertyKey, setNodes, taskId, property, "rightOperand")}
+                        options={ getOptionsForRightOperand(property) }
+                    />
+                )
+            case FORM_FIELD_TYPES.NUMBER:
+                return (
+                    <InputNumber
+                        className='w-[70px]'
+                        value={(property.value.rightOperand as number)}
+                        onChange={(e) => onChangeHandlerWithConditionProperty(e?.toString(), propertyKey, setNodes, taskId, property, "rightOperand")}
+                    ></InputNumber>
+                )
+            case FORM_FIELD_TYPES.BOOLEN:
+                return (
+                    <Select
+                        className='w-[70px]'
+                        value={(property.value.rightOperand as string)}
+                        disabled={property.value.leftOperand === ""}
+                        onChange={(e) => onChangeHandlerWithConditionProperty(e, propertyKey, setNodes, taskId, property, "rightOperand")}
+                        options={ [{label: "true", value: "true"}, {label: "false", value: "false"}] }
+                    />
+                )
+            default:
+                return (
+                    <Select
+                        className='w-[150px]'
+                        disabled
+                    />
+                )
+        }
+    }
+
+    const getOptionsForRightOperand = (property: any) => {
+        if (formFieldForCondition[property.value.leftOperand] && formFieldForCondition[property.value.leftOperand].options) {
+            return formFieldForCondition[property.value.leftOperand].options?.map((option: string) => {
+                return {
+                    label: option,
+                    value: option
+                }
+            })
+        }
+        return []
     }
 
     const getInitialPropertiesValues = (nodes: [], taskId: any) => {
