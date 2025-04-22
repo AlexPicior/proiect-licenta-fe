@@ -46,7 +46,7 @@ const TaskComponentNode = (props: NodeProps) => {
                 <CloseOutlined className="text-gray-400" />
             </button>
             <TaskComponent task={task}></TaskComponent>
-            {task.type === "approvalTask" ? (
+            {task.type === "approvalTask" || task.type === "conditionalTask" ? (
                 <>
                     <CheckOutlined 
                         className='absolute top-[22%] right-[5px]' 
@@ -63,14 +63,14 @@ const TaskComponentNode = (props: NodeProps) => {
                     <Handle
                         type="source"
                         position={Position.Right}
-                        id="approved"
+                        id="yes"
                         style={{ top: "30%" }}
                         isConnectable={true}
                     />
                     <Handle
                         type="source"
                         position={Position.Right}
-                        id="rejected"
+                        id="no"
                         style={{ top: "70%" }}
                         isConnectable={true}
                     />

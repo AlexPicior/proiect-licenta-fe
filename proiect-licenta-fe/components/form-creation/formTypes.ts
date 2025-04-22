@@ -12,12 +12,23 @@ enum FORM_FIELD_TYPES {
 export default FORM_FIELD_TYPES;
 
 export type FormField ={
+    id?: string
     label: string
     type: FORM_FIELD_TYPES,
     options?: string[]
 }
 
+export type FormFieldMap = {
+    [id: string]: FormField;
+  };
+  
+
 export type Form = {
     label: string,
     pages: FormField[][]
 };
+
+export type Option = {
+    label: string, 
+    value: string
+}
