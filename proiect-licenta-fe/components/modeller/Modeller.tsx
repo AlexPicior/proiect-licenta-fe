@@ -162,6 +162,7 @@ const ModellerWithoutProvider = () => {
     const [globalOptions, setGlobalOptions] : any = useState({});
     const [currentWorkflowId, setCurrentWorkflowId] = useState(2);
     const [tasks, setTasks] = useState<Task[]>([]);
+    const [fromVariablesFormTypes, setFromVariablesFormTypes] = useState({});
 
     useEffect(() => {
       fetch(`${API_URL}/workflowComponent`)
@@ -197,17 +198,6 @@ const ModellerWithoutProvider = () => {
         setInitialNodes(initialComponents);
         setNodes((nodes) => [...initialComponents])
 
-        componentsWithoutStartTask.push({
-          type: "conditionalTask",
-          label: "Conditional Task",
-          properties: {
-            condition: {
-              label: "Condition",
-              type: PROPERTIES_TYPES.CONDITION,
-              optionsType: VARIABLES_TYPES.FORM
-            }
-          }
-        })
         setTasks(componentsWithoutStartTask)
       })
       .catch(error => {
@@ -258,7 +248,12 @@ const ModellerWithoutProvider = () => {
                     };
 
                     if(formId) {
-                      optionForType.formId = formId;
+                      setFromVariablesFormTypes((prevState: any) => {
+                        return {
+                          ...prevState,
+                          [property.value.trim()]: formId
+                        }
+                      })
                     }
 
                     optionsForType.push(optionForType);
@@ -485,6 +480,7 @@ const ModellerWithoutProvider = () => {
                 edges={edges} 
                 globalOptions={globalOptions}
                 setGlobalOptions={setGlobalOptions}
+                fromVariablesFormTypes={fromVariablesFormTypes}
               ></DrawerForm>
             </Drawer>
             ) : (<></>)}

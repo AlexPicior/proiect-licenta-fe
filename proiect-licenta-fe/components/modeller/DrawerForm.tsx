@@ -71,7 +71,7 @@ const operations = {
 
 
 const DrawerForm = (props: any) => {
-    const {taskId, nodes, setNodes, edges, globalOptions, setGlobalOptions} = props;
+    const {taskId, nodes, setNodes, edges, globalOptions, setGlobalOptions, fromVariablesFormTypes} = props;
     const [formFieldForCondition, setFormFieldForCondition] = useState<FormFieldMap>({});
     const [optionsFieldForm, setOptionsFieldForm] = useState<Option[]>([]);
     const [formId, setFormId] = useState("");
@@ -215,21 +215,22 @@ const DrawerForm = (props: any) => {
 
     const getInputValue = (property: any, e:any) => {
         const propertyType = property.type
-        return propertyType === PROPERTIES_TYPES.SINGLE_TEXT 
-        || propertyType === PROPERTIES_TYPES.TEXT_AREA
-        || propertyType === PROPERTIES_TYPES.VARIABLE 
-        ? e.target.value.trim() 
-        : e;
+        if (propertyType === PROPERTIES_TYPES.TEXT_AREA || propertyType === PROPERTIES_TYPES.SINGLE_TEXT) {
+            return e.target.value;
+        } else if (propertyType === PROPERTIES_TYPES.VARIABLE) {
+            return e.target.value.trim();
+        }
+        return e;
 
     }
 
     const getConditionPropertyValue = (property: any, e:any, conditionPropertyType: any) => {
         const {value} = property;
         switch(conditionPropertyType) {
-            case "formId":
-                value.formId = e;
+            case "formVariableName":
+                value.formVariableName = e;
                 if (e !== "") {
-                    setFormId(e);
+                    setFormId(fromVariablesFormTypes[e]);
                 }
                 break;
             case "leftOperand":
@@ -299,7 +300,7 @@ const DrawerForm = (props: any) => {
                 )
             case PROPERTIES_TYPES.CONDITION:
                 property.value = property.value ? property.value : {
-                    formId: "",
+                    formVariableName: "",
                     leftOperand: optionsFieldForm.length > 0 ? optionsFieldForm[0].value : "",
                     operation: "",
                     rightOperand: ""
@@ -312,8 +313,8 @@ const DrawerForm = (props: any) => {
                             <Select
                                 showSearch
                                 className='w-[150px]'
-                                value={(property.value.formId as string)}
-                                onChange={(e) => onChangeHandlerWithConditionProperty(e, propertyKey, setNodes, taskId, property, "formId")}
+                                value={(property.value.formVariableName as string)}
+                                onChange={(e) => onChangeHandlerWithConditionProperty(e, propertyKey, setNodes, taskId, property, "formVariableName")}
                                 options={property.optionsType ? getOptionsForType(property.optionsType, taskId, property.options) : property.options}
                             />
                         </Flex>
@@ -324,7 +325,7 @@ const DrawerForm = (props: any) => {
                                     showSearch
                                     className='w-[170px]'
                                     value={(property.value.leftOperand as string)}
-                                    disabled={property.value.formId === ""}
+                                    disabled={property.value.formVariableName === ""}
                                     onChange={(e) => onChangeHandlerWithConditionProperty(e, propertyKey, setNodes, taskId, property, "leftOperand")}
                                     options={ optionsFieldForm }
                                 />
@@ -382,7 +383,7 @@ const DrawerForm = (props: any) => {
                                                 .map((option: any) => {
                                                     return {
                                                         label: option.variableName,
-                                                        value: option.formId ? option.formId : option.variableName
+                                                        value: option.variableName
                                                     }
                                                 })
                                                 ;

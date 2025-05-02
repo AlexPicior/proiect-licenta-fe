@@ -72,7 +72,7 @@ const FormCreationField = ({fieldData, index, onFieldChange, setForm, currentPag
                             { value: FORM_FIELD_TYPES.NUMBER, label: 'Number' },
                             { value: FORM_FIELD_TYPES.BOOLEN, label: 'TrueFals' },
                             { value: FORM_FIELD_TYPES.DATE, label: 'Date' },
-                            { value: FORM_FIELD_TYPES.UPLOAD, label: 'Upload' },
+                            // { value: FORM_FIELD_TYPES.UPLOAD, label: 'Upload' },
                         ]}
                     />
                 </Flex>
