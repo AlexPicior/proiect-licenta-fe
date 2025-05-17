@@ -74,7 +74,53 @@ const DrawerForm = (props: any) => {
     const {taskId, nodes, setNodes, edges, globalOptions, setGlobalOptions, fromVariablesFormTypes} = props;
     const [formFieldForCondition, setFormFieldForCondition] = useState<FormFieldMap>({});
     const [optionsFieldForm, setOptionsFieldForm] = useState<Option[]>([]);
-    const [formId, setFormId] = useState("");
+
+    const getTaskProperties = (nodes: [], taskId: any) => {
+        const clickedNode: any = nodes.filter((node: any) => node.id === taskId)[0];
+        const task: Task = clickedNode.data.task;
+        return {...task.properties};
+    }
+
+    const getFormVariableNameFromProperties = (properties: any) => {
+        if (properties) {
+            let formVariableName = "";
+            Object.entries(properties).forEach(([propertyKey, property]: any) => {
+                if (property.type === PROPERTIES_TYPES.CONDITION && property.value 
+                    && property.value.formVariableName && property.value.formVariableName !== "") {
+                    formVariableName = property.value.formVariableName;
+                }
+            })
+            return formVariableName;
+        }
+        return "";
+    }
+
+    const getFormIdFromNodes = (formVariableName: any) => {
+        if(formVariableName && formVariableName !== "") {
+            const fromVariablesFormTypes: any = {};
+            nodes.forEach((node: any) => {
+                if (node.data && node.data.task && node.data.task.properties) {
+                    let selectedFormType: any;
+                    Object.entries(node.data.task.properties).forEach(([propertyKey, property]: any) => {
+                        if (property.initialOptionTypes && property.initialOptionTypes.length > 0 
+                            && property.initialOptionTypes[0] === "forms") {
+                            selectedFormType = property.value;
+                        }
+                    })
+                    Object.entries(node.data.task.properties).forEach(([propertyKey, property]: any) => {
+                        if (property.variableType === VARIABLES_TYPES.FORM && property.value !== "" && selectedFormType) {
+                            fromVariablesFormTypes[property.value] = selectedFormType;
+                        }
+                    })
+                }
+            });
+            return fromVariablesFormTypes[formVariableName];
+        } else {
+            return "";
+        }
+    }
+
+    const [formId, setFormId] = useState(getFormIdFromNodes(getFormVariableNameFromProperties(getTaskProperties(nodes, taskId))));
 
     useEffect(() => {
         if (formId !== "") {
@@ -166,12 +212,6 @@ const DrawerForm = (props: any) => {
         )
     }
 
-    const getTaskProperties = (nodes: [], taskId: any) => {
-        const clickedNode: any = nodes.filter((node: any) => node.id === taskId)[0];
-        const task: Task = clickedNode.data.task;
-        return {...task.properties};
-    }
-
     const onChangeHandler = (e: any, propertyKey: any, setNodes: any, taskId: any, property: any) => {
         onChangeHandlerWithConditionProperty(e, propertyKey, setNodes, taskId, property, null);
     }
@@ -247,6 +287,20 @@ const DrawerForm = (props: any) => {
         }
         return value;
     }
+
+    const getFormFieldForConditionType = (propertyKey: any, formVariableName: any) => {
+        if (formFieldForCondition[propertyKey]) {
+            return formFieldForCondition[propertyKey].type;
+        } else {
+            // const fromVariablesFormTypes = getFromVariablesFormTypesFromNodes();
+            // if (fromVariablesFormTypes && fromVariablesFormTypes[formVariableName]) {
+            //     setFormId(fromVariablesFormTypes[formVariableName]);
+            // }
+            return null;
+        }
+    }
+
+    
 
     const getComponentByType = (property: TaskProperty, propertyKey: any, setNodes: any, taskId: any) => {
         switch(property.type) {
@@ -335,9 +389,9 @@ const DrawerForm = (props: any) => {
                                         value={(property.value.operation as string)}
                                         disabled={property.value.leftOperand === ""}
                                         onChange={(e) => onChangeHandlerWithConditionProperty(e, propertyKey, setNodes, taskId, property, "operation")}
-                                        options={ property.value.leftOperand !== "" ? getOperationByFieldType(formFieldForCondition[property.value.leftOperand].type) : []}
+                                        options={ property.value.leftOperand !== "" ? getOperationByFieldType(getFormFieldForConditionType(property.value.leftOperand, property.value.formVariableName)) : []}
                                     />
-                                    {getRightOperandViewByFieldType(property.value.leftOperand !== "" ? formFieldForCondition[property.value.leftOperand].type: "", propertyKey, property)}
+                                    {getRightOperandViewByFieldType(property.value.leftOperand !== "" ? getFormFieldForConditionType(property.value.leftOperand, property.value.formVariableName) : "", propertyKey, property)}
                                 </Flex>
                             </Flex>
                         </Flex>
@@ -395,6 +449,9 @@ const DrawerForm = (props: any) => {
     }
 
     const getOperationByFieldType = (type: any) => {
+        if (!type) {
+            return []
+        }
         switch(type) {
             case FORM_FIELD_TYPES.SINGLE_TEXT:
                 return operations.isOptions.concat(operations.containsOptions)

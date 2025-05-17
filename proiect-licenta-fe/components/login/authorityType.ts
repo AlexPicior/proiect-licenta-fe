@@ -1,0 +1,7 @@
+enum AUTHORITY_TYPE {
+    ADMIN = "ADMIN",
+    EMPLOYEE = "EMPLOYEE",
+    SUPER_ADMIN = "SUPER_ADMIN",
+    CLIENT = "CLIENT"
+};
+export default AUTHORITY_TYPE;

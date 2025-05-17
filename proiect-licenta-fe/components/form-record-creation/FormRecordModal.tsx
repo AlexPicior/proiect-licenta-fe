@@ -2,7 +2,8 @@
 
 import React, {
     useState,
-    useEffect
+    useEffect,
+    use
 } from 'react'
 import { 
     Input,
@@ -13,6 +14,7 @@ import {
     Flex, 
     Button, 
     DatePicker,
+    message
 } from 'antd';
 import {
     ArrowLeftOutlined,
@@ -21,11 +23,8 @@ import {
 } from '@ant-design/icons';
 import FORM_FIELD_TYPES from '../form-creation/formTypes';
 import dayjs from 'dayjs';
+import { useGlobalContext } from '@/components/context/GlobalContext';
 import '@ant-design/v5-patch-for-react-19';
-import { Client } from '@stomp/stompjs';
-import SockJS from 'sockjs-client';
-const BROKER_URL = 'http://localhost:8080/ws'; // TODO Replace with your RabbitMQ WebSocket URL
-
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -33,15 +32,39 @@ const { Text } = Typography;
 const { TextArea } = Input;
 
 
-const FormRecordModal = () => {
-    const [currentPage, setCurrentPage] = useState(1);
+const FormRecordModal = (props: any) => {
+    const {formRecordData, isForFormRecordCreation, isReadOnly, isForApproval, correlationId} = props;
+    const [currentPage, setCurrentPage] = useState(0);
     const [formFieldRecords, setFormFieldRecords] = useState([[]]);
     const [forms, setForms] = useState<any>({});
     const [formOptions, setFormOptions] = useState([]);
     const [formKey, setFormKey] = useState(0);
+    const { setTriggerNotificationsReload, authInfo } = useGlobalContext();
+    const [messageApi, contextHolder] = message.useMessage();
+    const [showMessage, setShowMessage] = useState({
+        type: '',
+        message: ''
+    });
+    useEffect(() => {
+        if (showMessage.type !== '') {
+        const { type, message: msgContent } = showMessage;
+        if (type === 'success') {
+            messageApi.open({
+            type: 'success',
+            content: msgContent,
+            });
+        } else if (type === 'error') {
+            messageApi.open({
+            type: 'error',
+            content: msgContent,
+            });
+        }
+        }
+    }, [showMessage]);
+    
 
     useEffect(() => {
-        fetch(`${API_URL}/form/organisation/${1}`)
+        fetch(`${API_URL}/form/organisation/${authInfo.userInfo.organisationId}`)
         .then(response => response.json())
         .then(formJsons => {
             const formsAvaiableForOrganisation: any = {};
@@ -61,6 +84,16 @@ const FormRecordModal = () => {
             console.error('Error fetching forms:', error);
         });
     }, []);
+
+    useEffect(() => {
+        if (formRecordData) {
+            setFormKey(formRecordData.formId);
+            setFormFieldRecords(() => getAndSetPagesFromFlatFormFieldRecords());
+        } else {
+            setFormKey(0);
+            setFormFieldRecords([[]]);
+        }
+    }, [formRecordData]);
 
     const setFormRecordFields = (formId: any) => {
         setFormKey(formId);
@@ -90,10 +123,10 @@ const FormRecordModal = () => {
             case FORM_FIELD_TYPES.SINGLE_TEXT:
                 return (
                     <Input
-                        allowClear
+                        allowClear={!isReadOnly}
                         className='w-[300px]'
                         value={(value as string)}
-                        onChange={(e) => onChangeHandler(e, formFieldRecord)}
+                        onChange={isReadOnly ? (()=>{}) : ((e) => onChangeHandler(e, formFieldRecord))}
                     ></Input>
                 )
             case FORM_FIELD_TYPES.MULTI_TEXT:
@@ -102,17 +135,17 @@ const FormRecordModal = () => {
                         mode="tags"
                         className='w-[300px]'
                         value={(arrayValues as string)}
-                        onChange={(e) => onChangeHandler(e, formFieldRecord)}
+                        onChange={isReadOnly ? (()=>{}) : ((e) => onChangeHandler(e, formFieldRecord))}
                         options={formField.options}
                     />
                 )
             case FORM_FIELD_TYPES.TEXT_AREA:
                 return (
                     <TextArea
-                        allowClear
+                        allowClear={!isReadOnly}
                         className='w-[500px] h-[120px] resize-none'
                         value={(value as string)}
-                        onChange={(e) => onChangeHandler(e, formFieldRecord)}
+                        onChange={isReadOnly ? (()=>{}) : ((e) => onChangeHandler(e, formFieldRecord))}
                     ></TextArea>
                 )
             case FORM_FIELD_TYPES.SINGLE_SELECT:
@@ -121,7 +154,7 @@ const FormRecordModal = () => {
                         showSearch
                         className='w-[200px]'
                         value={(value as string)}
-                        onChange={(e) => onChangeHandler(e, formFieldRecord)}
+                        onChange={isReadOnly ? (()=>{}) : ((e) => onChangeHandler(e, formFieldRecord))}
                         options={formField.options ? formField.options : [] }
                     />
                 )
@@ -131,15 +164,16 @@ const FormRecordModal = () => {
                         mode="multiple"
                         className='w-[300px]'
                         value={arrayValues}
-                        onChange={(e) => onChangeHandler(e, formFieldRecord)}
+                        onChange={isReadOnly ? (()=>{}) : ((e) => onChangeHandler(e, formFieldRecord))}
                         options={formField.options ? formField.options : []}
                     />
                 )
             case FORM_FIELD_TYPES.NUMBER:
                 return (
                     <InputNumber
+                        className='w-[300px]'
                         value={(value as number)}
-                        onChange={(e) => onChangeHandler(e, formFieldRecord)}
+                        onChange={isReadOnly ? (()=>{}) : ((e) => onChangeHandler(e, formFieldRecord))}
                     ></InputNumber>
                 )
             case FORM_FIELD_TYPES.BOOLEN:
@@ -147,7 +181,7 @@ const FormRecordModal = () => {
                     <Switch
                         className='w-[50px]'
                         value={(value as boolean)}
-                        onChange={(e) => onChangeHandler(e, formFieldRecord)}
+                        onChange={isReadOnly ? (()=>{}) : ((e) => onChangeHandler(e, formFieldRecord))}
                     ></Switch>
                 )
             case FORM_FIELD_TYPES.DATE:
@@ -156,7 +190,7 @@ const FormRecordModal = () => {
                         format="MM-DD-YYYY"
                         className='w-[120px]'
                         value={value !== "" ? dayjs(value, 'MM-DD-YYYY') : ""}
-                        onChange={(e, dateString) => onChangeHandler(dateString, formFieldRecord)}
+                        onChange={isReadOnly ? (()=>{}) : ((e, dateString) => onChangeHandler(dateString, formFieldRecord))}
                     ></DatePicker>
                 )
             // case FORM_FIELD_TYPES.UPLOAD:
@@ -164,14 +198,14 @@ const FormRecordModal = () => {
     }
 
     const onChangeHandler = (value: any, formFieldRecord: any) => {
-        value = value.target ? value.target.value : value;
+        value = value && value.target ? value.target.value : value;
         const formField = formFieldRecord.formField;
         setFormFieldRecords((prev: any) => {
             const newPage = [...prev];
             if(Array.isArray(value)) {
-                newPage[formField.pageNumber-1][formField.index].arrayValues = value;
+                newPage[formField.pageNumber][formField.index].arrayValues = value;
             } else {
-                newPage[formField.pageNumber-1][formField.index].value = value;
+                newPage[formField.pageNumber][formField.index].value = value;
             }
             return newPage;
         })
@@ -180,99 +214,139 @@ const FormRecordModal = () => {
     const onSend = async () => {
         if (formKey === 0) return;
         try {
+            setShowMessage({ type: 'success', message: 'Form record sent successfully!' });
             const response = await fetch(`${API_URL}/workflowInstance/trigger`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                personKey: 3,
+                personKey: authInfo.userInfo.id,
                 formKey: formKey,
                 formRecord: {
                     formId: formKey.toString(),
                     form: forms[formKey],
-                    userId: String(3),
+                    userId: String(authInfo.userInfo.id),
                     completedAt: dayjs().format('MM-DD-YYYY'),
                     fieldRecords: getFlatFormFieldRecords(),
+                    organisationId: authInfo.userInfo.organisationId, 
+                    completedBy: null
                 }
               }),
             });
             if (!response.ok) throw new Error("Failed to send");
+            
         } catch (err) {
-            console.error('Error sending form record:', err);
+            setShowMessage({ type: 'error', message: 'Failed to send form record!' });
         }
     }
 
-    const [currentUserId, setCurrentUserId] = useState(3); // TODO Replace with your current user ID logic
-    
-    useEffect(() => {
-        if (!currentUserId) return;
-    
-        const client = new Client({
-            webSocketFactory: () => new SockJS(BROKER_URL),
-            debug: str => console.log('[STOMP]', str),
-            reconnectDelay: 5000,
-            onConnect: () => {
-            const queue = `/topic/user.${currentUserId}`;
-            client.subscribe(queue, msg => {
-                const msgBody = JSON.parse(msg.body);
-                console.log('Received msg:', msgBody);});
-            },
-        });
-    
-        client.activate();
-        return () => {
-            client.deactivate();
-        };
-    }, [currentUserId]);
+    const getAndSetPagesFromFlatFormFieldRecords = () => {
+        const pages: any = [[]];
+        formRecordData.fieldRecords.forEach((formFieldRecord: any) => {
+            if (!pages[formFieldRecord.formField.pageNumber]) {
+                pages[formFieldRecord.formField.pageNumber] = [];
+            }
+            pages[formFieldRecord.formField.pageNumber][formFieldRecord.formField.index] = {
+                ...formFieldRecord,
+                formField: {
+                    ...formFieldRecord.formField,
+                    options: formFieldRecord.formField.options.length > 0 ? formFieldRecord.formField.options.map((option: any) => {
+                        return {
+                            label: option,
+                            value: option
+                        }
+                    }) : [],
+                },
+            };
+        })
+        setFormFieldRecords((prev) => pages);
+        return pages;
+    }
 
     const sendReply = async () => {
-        await fetch(`${API_URL}/reply`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                correlationId: 1, 
-                textMessage: "test",
-                replyForm: {
-                    formId: formKey.toString(),
-                    form: forms[formKey],
-                    userId: String(3),
-                    completedAt: dayjs().format('MM-DD-YYYY'),
-                    fieldRecords: getFlatFormFieldRecords(),
-                }
-            }),
-        });
+        try {
+            const response = await fetch(`${API_URL}/reply`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    correlationId: correlationId, 
+                    textMessage: "test",
+                    replyForm: {
+                        id: formRecordData ? formRecordData.id : null,
+                        formId: formKey.toString(),
+                        form: forms[formKey],
+                        userId: String(authInfo.userInfo.id),
+                        completedAt: dayjs().format('MM-DD-YYYY'),
+                        fieldRecords: getFlatFormFieldRecords(),
+                    }
+                }),
+            });
+            if (!response.ok) throw new Error("Failed to send reply");
+            setTriggerNotificationsReload((prev: any) => !prev);
+            setShowMessage({ type: 'success', message: 'Reply sent successfully!' });
+        } catch (err) {
+            setShowMessage({ type: 'error', message: 'Failed to send reply!' });
+        }
+    };
+
+    const sendApprovalReply = async (verdict: string) => {
+        try {
+            const response = await fetch(`${API_URL}/reply`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    correlationId: correlationId, 
+                    textMessage: verdict,
+                    replyForm: null
+                }),
+            });
+            if (!response.ok) throw new Error("Failed to send approve");
+            setTriggerNotificationsReload((prev: any) => !prev);
+            setShowMessage({ type: 'success', message: 'Response sent successfully!' });
+        } catch (err) {
+            setShowMessage({ type: 'error', message: 'Failed to send response!' });
+        }
     };
 
     const getFlatFormFieldRecords = () => {
         const flatFormFieldRecords: any = [];
         formFieldRecords.forEach((page: any) => {
             page.forEach((formFieldRecord: any) => {
-                flatFormFieldRecords.push(formFieldRecord);
+                flatFormFieldRecords.push({
+                    ...formFieldRecord,
+                    formField: {
+                        ...formFieldRecord.formField,
+                        options: formFieldRecord.formField.options.length > 0 ? formFieldRecord.formField.options.map((option: any) => {
+                            return option.value;
+                        }) : [],
+                    },
+                });
             })
         })
         return flatFormFieldRecords;
     }
 
-    return (
+    return (<>
+        {contextHolder}
         <div>
             <div 
                 className="h-[85vh] w-[45vw] pb-6 flex items-center justify-center bg-white rounded-lg shadow"
             >
                 <Flex vertical className='h-full w-full'>
-                    <div className='h-[80px] mb-3'>
+                    {isForFormRecordCreation ? (<div className='h-[80px] w-full mb-3'>
                         <Flex gap={10} align='center' className='h-full px-8 border-b border-gray-100'>
                             <Text className='text-[15px] font-semibold'>Form type:</Text>
                             <Select
                                 onChange={(formId) => setFormRecordFields(formId)}
-                                style={{ width: 230 }}
+                                style={{ width: 230, }}
                                 options={formOptions}
                             />
                         </Flex>
-                    </div>
+                    </div>) : (<></>)}
                     <div className='flex-1 p-1 px-8 overflow-y-auto'>
                         <Flex vertical className='h-full w-full'>
-                            {(formFieldRecords[currentPage - 1].map((formFieldRecord: any, index: number) => {
+                            {(formFieldRecords[currentPage].map((formFieldRecord: any, index: number) => {
                                 return (
                                     <Flex key={index} vertical className={`w-full ${formFieldRecord.formField.type !== FORM_FIELD_TYPES.TEXT_AREA ? "h-[80px]" : "h-fit"} p-2 `} gap={10}>
                                         <Text>{formFieldRecord.formField.label}</Text>
@@ -286,7 +360,7 @@ const FormRecordModal = () => {
                         <Flex className='h-[40%]' gap={10} justify='center' align='center'>
                             <Button 
                                 className='h-[15px]' 
-                                disabled={currentPage === 1}  
+                                disabled={currentPage + 1 === 1}  
                                 color="default" 
                                 variant="filled"
                                 onClick={() => setCurrentPage((prev) => prev - 1)}
@@ -294,11 +368,11 @@ const FormRecordModal = () => {
                                 <ArrowLeftOutlined className='h-[10px] w-[10px]' />
                             </Button>
                             <div className='w-[20px] flex justify-center'>
-                                <Text>{currentPage}</Text>
+                                <Text>{currentPage + 1}</Text>
                             </div>
                             <Button 
                                 className='h-[15px]' 
-                                disabled={currentPage >= formFieldRecords.length}
+                                disabled={currentPage + 1 >= formFieldRecords.length}
                                 color="default" 
                                 variant="filled"
                                 onClick={() => setCurrentPage((prev) => prev + 1)}
@@ -306,23 +380,28 @@ const FormRecordModal = () => {
                                 <ArrowRightOutlined className='h-[10px] w-[10px]' />
                             </Button>
                         </Flex>
-                        <Flex justify='flex-end' className='h-[50%]'>
+                        {!isReadOnly ? ( <Flex justify='flex-end' className='h-[50%]'>
                             {/* <Button color="default" variant="solid">
                                 Preview
                             </Button> */}
-                            <Button onClick={onSend} color="default" variant="solid">
-                                Send
+                            <Button onClick={isForFormRecordCreation ? (onSend) : (sendReply)} color="default" variant="solid">
+                                {isForFormRecordCreation ? "Send" : "Send Reply"}
                             </Button>
-                        </Flex>
+                        </Flex>) : (<></>)}
+                        {isForApproval ? (<Flex justify='center' className='h-[50%]' gap={10}>
+                            <Button onClick={() => sendApprovalReply("reject")} color="danger" style={{width: 85,}} variant="solid">
+                                Reject
+                            </Button>
+                            <Button onClick={() => sendApprovalReply("approved")} type="primary" style={{ backgroundColor: '#52c41a', borderColor: '#52c41a', width: 85, }} variant="solid">
+                                Approve
+                            </Button>
+                        </Flex>) : (<></>)}
                     </Flex>
                 </Flex>
 
             </div>
-            <div>
-                <Button onClick={() => sendReply()}>Send Reply</Button>
-            </div>
         </div>
-    )
+    </>)
 }
 
 export default FormRecordModal

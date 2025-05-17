@@ -1,9 +1,9 @@
 "use client";
 
 import React, {
-    useState
+    useState, useRef, useEffect
 } from 'react'
-import { Button, Typography, Input, Flex } from 'antd';
+import { Button, Typography, Input, Flex, message } from 'antd';
 import FormCreationField from './FormCreationField';
 import {
     ArrowLeftOutlined,
@@ -12,18 +12,55 @@ import {
 } from '@ant-design/icons';
 import { Form, FormField } from './formTypes';
 import FORM_FIELD_TYPES from './formTypes';
+import { useGlobalContext } from '@/components/context/GlobalContext';
 import '@ant-design/v5-patch-for-react-19';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const { Text } = Typography;
+const { TextArea } = Input;
 
-const FormCreationModal = () => {
-    const [form, setForm] = useState<Form>({
-        label: "",
-        pages: [[], []]
+const FormCreationModal = (props:any) => {
+    const [messageApi, contextHolder] = message.useMessage();
+    const [showMessage, setShowMessage] = useState({
+        type: '',
+        message: ''
     });
-    const [currentPage, setCurrentPage] = useState(1);
+    useEffect(() => {
+        if (showMessage.type !== '') {
+        const { type, message: msgContent } = showMessage;
+        if (type === 'success') {
+            messageApi.open({
+            type: 'success',
+            content: msgContent,
+            });
+        } else if (type === 'error') {
+            messageApi.open({
+            type: 'error',
+            content: msgContent,
+            });
+        }
+        }
+    }, [showMessage]);
+
+    const { formData, setTriggerReload } = props;
+    const [form, setForm] = useState<Form>({
+        label: formData.label,
+        description: formData.description,
+        pages: formData.pages ? formData.pages : [[]],
+    });
+    const [currentPage, setCurrentPage] = useState(0);
+    const containerRef = useRef(null);
+    const [addButtonPressed, setAddButtonPressed] = useState(false);
+    const { authInfo, setAuthInfo } = useGlobalContext();
+    
+
+    useEffect(() => {
+        const container: any = containerRef.current;
+        if (container) {
+        container.scrollTop = container.scrollHeight;
+        }
+    }, [addButtonPressed]); 
 
     const onLabelChange = (e:any) => {
         setForm((prev: Form) => {
@@ -73,6 +110,7 @@ const FormCreationModal = () => {
                 pages: pages
             }
         })
+        setAddButtonPressed((prev) => !prev);
     }
 
     const saveForm = async () => {
@@ -84,24 +122,40 @@ const FormCreationModal = () => {
               },
               body: JSON.stringify({
                 ...form,
-                organisationId: 1
+                id: formData.id ? formData.id : null,
+                lastModifiedById: authInfo.userInfo.id,
+                organisationId: authInfo.userInfo.organisationId,
+                lastModifiedAt: (new Date()).toISOString().slice(0, 19),
               }),
             });
             if (!response.ok) throw new Error("Failed to fetch data");
+            setTriggerReload((prev: any) => !prev);
+            setShowMessage({ type: 'success', message: 'Form saved successfully!' });
         } catch (err) {
+            setShowMessage({ type: 'error', message: 'Failed to save form!' });
         }
     }
 
-    return (
+    return (<>
+        {contextHolder}
         <div>
             <div 
-                className="h-[85vh] w-[60vw] p-8 flex items-center justify-center bg-white rounded-lg shadow"
+                className="h-[600px] w-[60vw] px-8 py-4 flex items-center justify-center bg-white rounded-lg shadow"
             >
                 <Flex vertical className='h-full w-full'>
-                    <div className='h-[40px] mb-3'>
-                        <Input onChange={(e) => onLabelChange(e)} className='w-[60%]' placeholder="Form label" variant="underlined" />
-                    </div>
-                    <div className='flex-1 p-1 overflow-y-auto'>
+                    <Flex className='h-[10%]' justify='space-between' align='center' gap={10}>
+                        <Input 
+                            value={form.label ? form.label : ""}
+                            onChange={(e) => setForm((prev: Form) => { return {...prev, label: e.target.value}})} 
+                            className='w-[200px]' placeholder="Label" variant="underlined" 
+                        />
+                        <TextArea 
+                            value={form.description ? form.description : ""}
+                            onChange={(e) => setForm((prev: Form) => { return {...prev, description: e.target.value}})}
+                            className='w-[400px]' placeholder="Description" rows={2} 
+                        />
+                    </Flex>
+                    <Flex ref={containerRef} vertical className='h-[80%] px-1 py-5 overflow-y-auto' gap={15}>
                         { form.pages[currentPage] && form.pages[currentPage].length > 0 
                             ? form.pages[currentPage].map((field, index) => (
                             <FormCreationField 
@@ -113,15 +167,15 @@ const FormCreationModal = () => {
                                 currentPage={currentPage}
                             ></FormCreationField>
                         ) ) : (<></>)}
-                        <Button onClick={addField} color="default" variant="solid">
+                        <Button className='w-[40px] min-h-[30px]' onClick={addField} color="default" variant="solid">
                             <PlusOutlined />
                         </Button>
-                    </div>
-                    <Flex vertical className='h-[80px] pt-3 border-t border-gray-100' gap={12}>
+                    </Flex>
+                    <Flex vertical className='h-[10%] pt-3 border-t border-gray-100'>
                         <Flex className='h-[40%]' gap={10} justify='center' align='center'>
                             <Button 
                                 className='h-[15px]' 
-                                disabled={currentPage === 1}  
+                                disabled={currentPage + 1 === 1}  
                                 color="default" 
                                 variant="filled"
                                 onClick={() => setCurrentPage((prev) => prev - 1)}
@@ -129,7 +183,7 @@ const FormCreationModal = () => {
                                 <ArrowLeftOutlined className='h-[10px] w-[10px]' />
                             </Button>
                             <div className='w-[20px] flex justify-center'>
-                                <Text>{currentPage}</Text>
+                                <Text>{currentPage + 1}</Text>
                             </div>
                             <Button 
                                 className='h-[15px]' 
@@ -152,7 +206,7 @@ const FormCreationModal = () => {
                 </Flex>
             </div>
         </div>
-    )
+    </>)
 }
 
 export default FormCreationModal
