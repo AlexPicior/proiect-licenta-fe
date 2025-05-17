@@ -24,7 +24,8 @@ export type FormFieldMap = {
   
 
 export type Form = {
-    label: string,
+    label: string|null,
+    description: string|null,
     pages: FormField[][]
 };
 

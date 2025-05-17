@@ -25,12 +25,16 @@ import StartNode from './StartNode';
 import EndNode from './EndNode';
 import EdgeComponent from './EdgeComponent';
 import { Task } from './modellerTypes';
-import { Drawer, Button } from 'antd';
+import { Drawer, Button, Typography, Input, Flex, message } from 'antd';
 import PROPERTIES_TYPES from './drawerPropertiesTypes';
 import VARIABLES_TYPES from './variableTypes';
 import DrawerForm from './DrawerForm';
+import { useGlobalContext } from '@/components/context/GlobalContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+const { Text } = Typography;
+const { TextArea } = Input;
 
 const nodeTypes = { 
   taskComponentNode: TaskComponentNode,
@@ -42,130 +46,53 @@ const edgeTypes = {
   'edgeComponent': EdgeComponent,
 };
 
-
-// const tasks: Task[] = [
-//   {
-//     type: "sendEmailTask",
-//     label: "Send Email Task",
-//     properties: {
-//       sendTo: {
-//         label: "Send to",
-//         type: PROPERTIES_TYPES.MULTI_TEXT,
-//         value: []
-//       },
-//       test1: {
-// 				label: "User",
-// 				type: PROPERTIES_TYPES.VARIABLE,
-//         variableType: VARIABLES_TYPES.PERSON,
-// 				value: ""
-// 			},
-//       testTest: {
-//         label: "Test",
-//         type: PROPERTIES_TYPES.SINGLE_SELECT,
-//         value: "",
-//         options: [{ value: 'Form1', label: 'Form1' }, { value: 'Form2', label: 'Form2' }, { value: 'Document1', label: 'Document1' }],
-//         next: {
-//           Form1: {
-// 						label: "Test1Option1",
-// 						type: PROPERTIES_TYPES.MULTI_TEXT,
-// 						value: [],
-// 						parentKey: "testTest"
-// 					},
-// 					Form2: {
-// 						label: "Test1Option2",
-// 						type: PROPERTIES_TYPES.NUMBER,
-// 						value: 0,
-// 						parentKey: "testTest"
-// 					},
-//           Document1: {
-// 						label: "Test1Option3",
-// 						type: PROPERTIES_TYPES.SINGLE_TEXT,
-// 						value: "",
-// 						parentKey: "testTest"
-// 					}
-//         }
-//       },
-//       content: {
-//         label: "Content",
-//         type: PROPERTIES_TYPES.TEXT_AREA,
-//         value: ""
-//       },
-//     }
-//   },
-//   {
-//     type: "storeDocumentTask",
-//     label: "Store Document Task",
-//     properties: {
-//       whatToStore: {
-//         label: "Storage",
-//         type: PROPERTIES_TYPES.MULTI_SELECT,
-//         value: [],
-//         options: [{ value: 'Form1', label: 'Form1' }, { value: 'Form2', label: 'Form2' }, { value: 'Document1', label: 'Document1' }]
-//       },
-//       testT: {
-// 				label: "Test2",
-// 				type: PROPERTIES_TYPES.SINGLE_SELECT,
-// 				value: "",
-//         options: [{ value: 'Form1', label: 'Form1' }, { value: 'Form2', label: 'Form2' }, { value: 'Document1', label: 'Document1' }],
-// 				optionsType: VARIABLES_TYPES.PERSON
-// 			}
-//     }
-//   },
-//   {
-//     type: "waitForApprovalTask",
-//     label: "Wait For Aproval Task",
-//     properties: {
-//       byWho: {
-//         label: "Approved by who",
-//         type: PROPERTIES_TYPES.MULTI_SELECT,
-//         value: [],
-//         options: [{ value: 'Role1', label: 'Role1' }, { value: 'Role2', label: 'Role2' }, { value: 'Role3', label: 'Role3' }]
-//       }
-//     }
-//   },
-// ]
-
-const startNode = {
-  id: "startNode", 
-  type: "startNode",
-  position: {
-    x: 0,
-    y: 0
-  },
-  data: {
-    task: {
-      type: "startNode",
-      label: "Start Node",
-      properties: {
-        byWho: {
-          label: "Approved by who",
-          type: PROPERTIES_TYPES.MULTI_SELECT,
-          value: [],
-          options: [{ value: 'Role1', label: 'Role1' }, { value: 'Role2', label: 'Role2' }, { value: 'Role3', label: 'Role3' }]
-        }
+const ModellerWithoutProvider = (props: any) => {
+  const [messageApi, contextHolder] = message.useMessage();
+  const [showMessage, setShowMessage] = useState({
+      type: '',
+      message: ''
+  });
+  useEffect(() => {
+      if (showMessage.type !== '') {
+      const { type, message: msgContent } = showMessage;
+      if (type === 'success') {
+          messageApi.open({
+          type: 'success',
+          content: msgContent,
+          });
+      } else if (type === 'error') {
+          messageApi.open({
+          type: 'error',
+          content: msgContent,
+          });
       }
-    }
-  }
-}
+      }
+  }, [showMessage]);
 
-const ModellerWithoutProvider = () => {
-    const [taskIdForDrawer, setTaskIdForDrawer] = useState(0);
-    const showDrawer = () => {
-      setOpen(true);
-    };
+  const { workflowDefinitionData, setTriggerReload } = props;
+  const [workflowDefinitionMetaData, setWorkflowDefinitionMetaData] = useState({
+    label: workflowDefinitionData.label,
+    description: workflowDefinitionData.description,
+  });
+  const [taskIdForDrawer, setTaskIdForDrawer] = useState(0);
+  const showDrawer = () => {
+    setOpen(true);
+  };
+
+  const [initialNodes, setInitialNodes] = useState<any>([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<any>>([]);
+  const { screenToFlowPosition } = useReactFlow();
+  const [open, setOpen] = useState(false);
+  const [globalOptions, setGlobalOptions] : any = useState({});
+  const [currentWorkflowId, setCurrentWorkflowId] = useState(2);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [fromVariablesFormTypes, setFromVariablesFormTypes] = useState({});
+  const { authInfo, setAuthInfo } = useGlobalContext();
   
-    const [initialNodes, setInitialNodes] = useState<any>([]);
-    const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-    const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<any>>([]);
-    const { screenToFlowPosition } = useReactFlow();
-    const [open, setOpen] = useState(false);
-    const [globalOptions, setGlobalOptions] : any = useState({});
-    const [currentWorkflowId, setCurrentWorkflowId] = useState(2);
-    const [tasks, setTasks] = useState<Task[]>([]);
-    const [fromVariablesFormTypes, setFromVariablesFormTypes] = useState({});
 
-    useEffect(() => {
-      fetch(`${API_URL}/workflowComponent`)
+  useEffect(() => {
+    fetch(`${API_URL}/workflowComponent`)
       .then(response => response.json())
       .then(components => {
         const startTask = components.filter((component: any) => component.type === "startNode")[0]
@@ -199,294 +126,303 @@ const ModellerWithoutProvider = () => {
         setNodes((nodes) => [...initialComponents])
 
         setTasks(componentsWithoutStartTask)
+
+        if (workflowDefinitionData) {
+          generateNodesAndEdgesFromWorkflowDefinition(workflowDefinitionData.jsonDefinition);
+        }
       })
       .catch(error => {
 
       });
-    }, []);
+  }, []);
 
-    const getNodesTypes = () => {
-      const additionalNodeTypes = tasks.reduce((acc, task) => {
-        acc[task.type] = TaskComponentNode;
-        return acc;
-      }, {} as Record<string, typeof TaskComponentNode>);
-      return {...nodeTypes, ...additionalNodeTypes}
-    }
+  const getNodesTypes = () => {
+    const additionalNodeTypes = tasks.reduce((acc, task) => {
+      acc[task.type] = TaskComponentNode;
+      return acc;
+    }, {} as Record<string, typeof TaskComponentNode>);
+    return {...nodeTypes, ...additionalNodeTypes}
+  }
 
-    const onCloseDrawer = () => {
-      setVariablesFromNodes();
-      setOpen(false);
-    };
+  const onCloseDrawer = () => {
+    setVariablesFromNodes();
+    setOpen(false);
+  };
 
-    const setVariablesFromNodes = () => {
-      const focusedNode: any = nodes.filter((node) => node.id === `${taskIdForDrawer}`)[0]
-      if (focusedNode) {
-        if (focusedNode.data && focusedNode.data.task.properties) {
-          const taskProperties: any = focusedNode.data.task.properties;
-          const taskPropertiesList: any = Object.entries(taskProperties);
-          let formId: any;
-          taskPropertiesList.forEach(([propertyKey, property]: any, index:any) => {
-            if (property.type === PROPERTIES_TYPES.SINGLE_SELECT 
-              && ((property.initialOptionTypes && property.initialOptionTypes.includes("forms")) 
-                || property.optionsType && property.optionsType === VARIABLES_TYPES.FORM)
-              && property.value && property.value !== "") {
-              formId = property.value;
-            }
-          })
-          taskPropertiesList.forEach(([propertyKey, property]: any, index:any) => {
-            if(property.type === PROPERTIES_TYPES.VARIABLE) {
-              setGlobalOptions((globalOptions:any) => {
-                if(property.variableType) {
-                    let optionsForType = globalOptions[property.variableType] ? [...globalOptions[property.variableType]] : [];
-                    const optionAlreadyExisting = optionsForType.filter((option) => option.variableName === property.value)[0]
-                    if(optionAlreadyExisting) {
-                      optionsForType = optionsForType.filter((option) => option.variableName !== property.value)
-                    }
-                    const optionForType: any = {
-                      taskId: taskIdForDrawer,
-                      variableName: property.value.trim()
-                    };
+  const setVariablesFromNodes = () => {
+    const focusedNode: any = nodes.filter((node) => node.id === `${taskIdForDrawer}`)[0]
+    if (focusedNode) {
+      if (focusedNode.data && focusedNode.data.task.properties) {
+        const taskProperties: any = focusedNode.data.task.properties;
+        const taskPropertiesList: any = Object.entries(taskProperties);
+        let formId: any;
+        taskPropertiesList.forEach(([propertyKey, property]: any, index:any) => {
+          if (property.type === PROPERTIES_TYPES.SINGLE_SELECT 
+            && ((property.initialOptionTypes && property.initialOptionTypes.includes("forms")) 
+              || property.optionsType && property.optionsType === VARIABLES_TYPES.FORM)
+            && property.value && property.value !== "") {
+            formId = property.value;
+          }
+        })
+        taskPropertiesList.forEach(([propertyKey, property]: any, index:any) => {
+          if(property.type === PROPERTIES_TYPES.VARIABLE) {
+            setGlobalOptions((globalOptions:any) => {
+              if(property.variableType) {
+                  let optionsForType = globalOptions[property.variableType] ? [...globalOptions[property.variableType]] : [];
+                  const optionAlreadyExisting = optionsForType.filter((option) => option.variableName === property.value)[0]
+                  if(optionAlreadyExisting) {
+                    optionsForType = optionsForType.filter((option) => option.variableName !== property.value)
+                  }
+                  const optionForType: any = {
+                    taskId: taskIdForDrawer,
+                    variableName: property.value.trim()
+                  };
 
-                    if(formId) {
-                      setFromVariablesFormTypes((prevState: any) => {
-                        return {
-                          ...prevState,
-                          [property.value.trim()]: formId
-                        }
-                      })
-                    }
+                  if(formId) {
+                    setFromVariablesFormTypes((prevState: any) => {
+                      return {
+                        ...prevState,
+                        [property.value.trim()]: formId
+                      }
+                    })
+                  }
 
-                    optionsForType.push(optionForType);
+                  optionsForType.push(optionForType);
 
-                    globalOptions[property.variableType] = optionsForType;
-                    return {
-                        ...globalOptions
-                    }
-                }
-              })
-            }
-          })
-        }
+                  globalOptions[property.variableType] = optionsForType;
+                  return {
+                      ...globalOptions
+                  }
+              }
+            })
+          }
+        })
       }
     }
+  }
 
-    const onConnect = useCallback(
-        (params: any) => {
-          const edge = {...params, 
-            type: "edgeComponent",
-            markerEnd: {
-              type: MarkerType.ArrowClosed,
-              width: 20,
-              height: 20,
-            },
-          };
-          setEdges((eds) => addEdge(edge, eds))},
-        [],
-    );
-
-    const onDragOver = useCallback((event: any) => {
-      event.preventDefault();
-      event.dataTransfer.dropEffect = "move";
-    }, []);
-  
-    const onDrop = useCallback(
-      (event: any) => {
-        event.preventDefault();
-
-        const task: Task = JSON.parse(event.dataTransfer.getData("task"));
-
-        const position = screenToFlowPosition({
-          x: event.clientX,
-          y: event.clientY,
-        });
-  
-        const newNode = {
-          id: `${+new Date()}`, 
-          type: task.type,
-          position: position,
-          data: { 
-            label: task.label,
-            task: {...task},
-            showDrawer: showDrawer,
-            setTaskIdForDrawer: setTaskIdForDrawer
+  const onConnect = useCallback(
+      (params: any) => {
+        const edge = {...params, 
+          type: "edgeComponent",
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            width: 20,
+            height: 20,
           },
         };
-  
-        setNodes((nds) => nds.concat(newNode));
-      },
-      [screenToFlowPosition, setNodes]
-    );
+        setEdges((eds) => addEdge(edge, eds))},
+      [],
+  );
 
-    const generateNodesAndEdgesFromWorkflowDefinition = (workflowDefinitionJson: any) => {
-      const workflowDefinition = JSON.parse(workflowDefinitionJson);
-      if (workflowDefinition) {
-        const {nodes, edges} = workflowDefinition;
-      
-        setNodes(nodes.map((node: any) => {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              showDrawer: showDrawer,
-              setTaskIdForDrawer: setTaskIdForDrawer
-            }
-          }
-        }))
+  const onDragOver = useCallback((event: any) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  }, []);
 
-        setEdges(edges.map((edge: any) => {
-          return {
-            ...edge,
-            type: "edgeComponent",
-            markerEnd: {
-              type: MarkerType.ArrowClosed,
-              width: 20,
-              height: 20,
-            }
-          }
-        }))
-      }
-    };
+  const onDrop = useCallback(
+    (event: any) => {
+      event.preventDefault();
 
-    const generateWorkflowDefinition = () => {
-      const workflowDefinition: any = {};
-      let nodesToSave: any = [...nodes]
-      let edgesToSave: any = [...edges]
+      const task: Task = JSON.parse(event.dataTransfer.getData("task"));
+
+      const position = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+
+      const newNode = {
+        id: `${+new Date()}`, 
+        type: task.type,
+        position: position,
+        data: { 
+          label: task.label,
+          task: {...task},
+          showDrawer: showDrawer,
+          setTaskIdForDrawer: setTaskIdForDrawer
+        },
+      };
+
+      setNodes((nds) => nds.concat(newNode));
+    },
+    [screenToFlowPosition, setNodes]
+  );
+
+  const generateNodesAndEdgesFromWorkflowDefinition = (workflowDefinitionJson: any) => {
+    const workflowDefinition = JSON.parse(workflowDefinitionJson);
+    if (workflowDefinition) {
+      const {nodes, edges} = workflowDefinition;
     
-      nodesToSave = nodesToSave.map((node: any) => {
-        const {id, type, position, data } = node;
-        if (data) {
-          const {label, task} = data
-          return {
-            id: id,
-            type: type,
-            position: position,
-            data: {
-              label: label,
-              task: task
-            }
+      setNodes(nodes.map((node: any) => {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            showDrawer: showDrawer,
+            setTaskIdForDrawer: setTaskIdForDrawer
           }
         }
-    
+      }))
+
+      setEdges(edges.map((edge: any) => {
+        return {
+          ...edge,
+          type: "edgeComponent",
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            width: 20,
+            height: 20,
+          }
+        }
+      }))
+    }
+  };
+
+  const generateWorkflowDefinition = () => {
+    const workflowDefinition: any = {};
+    let nodesToSave: any = [...nodes]
+    let edgesToSave: any = [...edges]
+  
+    nodesToSave = nodesToSave.map((node: any) => {
+      const {id, type, position, data } = node;
+      if (data) {
+        const {label, task} = data
         return {
           id: id,
           type: type,
-          position: position
+          position: position,
+          data: {
+            label: label,
+            task: task
+          }
         }
-      })
-    
-      edgesToSave = edgesToSave.map((edge: any) => {
-        const {id, source, target, sourceHandle } = edge;
-        const edgeToSave: any = {
-          id: id,
-          source: source,
-          target: target
-        }
-        if (sourceHandle) {
-          edgeToSave.sourceHandle = sourceHandle;
-        }
-        return edgeToSave
-      })
-    
-      workflowDefinition.nodes = nodesToSave;
-      workflowDefinition.edges = edgesToSave;
-      const workflowDefinitionJson = JSON.stringify(workflowDefinition)
-
-      return workflowDefinitionJson
-    };
-
-    const saveWorkflow = async () => {
-      try {
-        const response = await fetch(`${API_URL}/workflowDefinition`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            userId: 1,
-            organisationId: 1,
-            label: "wf1",
-            description: "dsacad",
-            createdAt: new Date(),
-            jsonDefinition: generateWorkflowDefinition()
-          }),
-        });
-        if (!response.ok) throw new Error("Failed to fetch data");
-        const responseBody = await response.json();
-        if(responseBody.id) {
-          setCurrentWorkflowId(responseBody.id)
-        }
-      } catch (err) {
-      } 
-    }
-
-    const getWorkflowById = async (workflowId: number) => {
-      try {
-        const response = await fetch(`${API_URL}/workflowDefinition/${workflowId}`);
-        if (!response.ok) throw new Error("Failed to fetch data");
-        const responseBody = await response.json();
-        if (responseBody.jsonDefinition) {
-          generateNodesAndEdgesFromWorkflowDefinition(responseBody.jsonDefinition);
-        }
-      } catch (err) {
-      } finally {
       }
-    }
+  
+      return {
+        id: id,
+        type: type,
+        position: position
+      }
+    })
+  
+    edgesToSave = edgesToSave.map((edge: any) => {
+      const {id, source, target, sourceHandle } = edge;
+      const edgeToSave: any = {
+        id: id,
+        source: source,
+        target: target
+      }
+      if (sourceHandle) {
+        edgeToSave.sourceHandle = sourceHandle;
+      }
+      return edgeToSave
+    })
+  
+    workflowDefinition.nodes = nodesToSave;
+    workflowDefinition.edges = edgesToSave;
+    const workflowDefinitionJson = JSON.stringify(workflowDefinition)
 
-    const discardAll = () => {
-      setNodes((nodes) => [...initialNodes])
-      setEdges([])
-    }
+    return workflowDefinitionJson
+  };
 
-    return (
-      <div className='h-[60%] w-[90%] flex flex-row'>
-        <aside className="w-[25%] h-full bg-white shadow-md rounded-l-lg p-4 overflow-y-auto">
-          <div className='flex flex-row'>
-            <h4 className="text-xl font-semibold text-gray-700 mb-4">Node Types</h4>
-            <Button onClick={saveWorkflow} type="primary">SAVE</Button>
-            <Button onClick={() => discardAll()} type="primary">DISCARD</Button>
-            <Button onClick={() => getWorkflowById(currentWorkflowId)} type="primary">SHOW SAVED</Button>
-          </div>
-          <div className="space-y-3">
+  const saveWorkflow = async () => {
+    try {
+      const response = await fetch(`${API_URL}/workflowDefinition`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: workflowDefinitionData.id ? workflowDefinitionData.id : null,
+          lastModifiedById: authInfo.userInfo.id,
+          organisationId: authInfo.userInfo.organisationId,
+          label: workflowDefinitionMetaData.label.trim(),
+          description: workflowDefinitionMetaData.description.trim(),
+          lastModifiedAt: (new Date()).toISOString().slice(0, 19),
+          jsonDefinition: generateWorkflowDefinition()
+        }),
+      });
+      if (!response.ok) throw new Error("Failed to fetch data");
+      setTriggerReload((prev: any) => !prev);
+      setShowMessage({ type: 'success', message: 'Workflow saved successfully!' });
+    } catch (err) {
+      setShowMessage({ type: 'error', message: 'Failed to save workflow!' });
+    } 
+  }
+
+  const discardAll = () => {
+    setNodes((nodes) => [...initialNodes])
+    setEdges([])
+    setShowMessage({ type: 'success', message: 'Diagram cleared successfully!' });
+  }
+
+  return (<>
+    {contextHolder}
+    <div className='h-full max-h-[600px] w-full flex flex-row'>
+      <aside className="w-[25%] h-full max-h-[600px] bg-white shadow-md rounded-l-lg p-4 overflow-y-auto">
+        <Flex vertical gap={10} className='h-full w-full'>
+          <Flex vertical gap={15} className='h-full w-full border-b border-gray-100 pb-4'>
+            <Flex vertical gap={15}>
+              <Input 
+                value={workflowDefinitionMetaData.label}
+                onChange={(e) => setWorkflowDefinitionMetaData((prev: any) => { return {...prev, label: e.target.value}})} 
+                className='w-[60%]' placeholder="Label" variant="underlined" 
+              />
+              <TextArea 
+                value={workflowDefinitionMetaData.description}
+                onChange={(e) => setWorkflowDefinitionMetaData((prev: any) => { return {...prev, description: e.target.value}})}
+                className='w-[95%]' placeholder="Description" rows={4} 
+              />
+            </Flex>
+            <Flex justify='space-between' gap={15}>
+              <Button onClick={saveWorkflow} color="default" variant='solid'>Save</Button>
+              <Button onClick={() => discardAll()} color="default" variant='solid'>Clear diagram</Button>
+            </Flex>
+          </Flex>
+
+          <Flex vertical align='center' gap={10}>
+            <Text className='text-gray-500 mb-3'>Drag and drop tasks into the diagram</Text>
             {tasks.map((task, index) => (
               <TaskComponent key={index} task = {task}></TaskComponent>
             ) )}
-          </div>
-        </aside>
-        <div className='h-full w-[75%] relative'>
-            <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            nodeTypes={getNodesTypes()}
-            edgeTypes={edgeTypes}
-            onDrop={onDrop} 
-            onDragOver={onDragOver}
-            className='rounded-r-lg'
-            fitView
-            style={{ backgroundColor: "#F7F9FB" }}
-            >
-                <Controls />
-                <Background  />
-            </ReactFlow>
-            { nodes && (nodes.length > 2 || `${taskIdForDrawer}` === "startNode")  ?
-            (
-            <Drawer title="Properties" onClose={onCloseDrawer} open={open} getContainer={false}>
-              <DrawerForm 
-                taskId={taskIdForDrawer} 
-                nodes={nodes} 
-                setNodes={setNodes} 
-                edges={edges} 
-                globalOptions={globalOptions}
-                setGlobalOptions={setGlobalOptions}
-                fromVariablesFormTypes={fromVariablesFormTypes}
-              ></DrawerForm>
-            </Drawer>
-            ) : (<></>)}
-        </div>
+          </Flex>
+        </Flex>
+      </aside>
+      <div className='h-[600px] max-h-[600px] w-[75%] relative'>
+          <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          nodeTypes={getNodesTypes()}
+          edgeTypes={edgeTypes}
+          onDrop={onDrop} 
+          onDragOver={onDragOver}
+          className='rounded-r-lg'
+          fitView
+          style={{ backgroundColor: "#F7F9FB" }}
+          >
+              <Controls />
+              <Background  />
+          </ReactFlow>
+          { nodes && (nodes.length > 2 || `${taskIdForDrawer}` === "startNode")  ?
+          (
+          <Drawer title="Properties" onClose={onCloseDrawer} open={open} getContainer={false}>
+            <DrawerForm 
+              taskId={taskIdForDrawer} 
+              nodes={nodes} 
+              setNodes={setNodes} 
+              edges={edges} 
+              globalOptions={globalOptions}
+              setGlobalOptions={setGlobalOptions}
+              fromVariablesFormTypes={fromVariablesFormTypes}
+            ></DrawerForm>
+          </Drawer>
+          ) : (<></>)}
       </div>
-    )
+    </div>
+  </>)
 }
 
 function Modeller(props: any) {
