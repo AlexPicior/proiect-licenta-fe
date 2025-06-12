@@ -162,6 +162,7 @@ const StorageComponent = () => {
     {
       title: '',
       key: 'action',
+      width: '7%',
       // sorter: true,
       render: (record: DataType) => (
         <Space size="middle">

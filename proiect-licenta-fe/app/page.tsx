@@ -1,22 +1,27 @@
-import Modeller from "@/components/modeller/Modeller";
-import FormCreationModal from "@/components/form-creation/FormCreationModal";
-import TestRabbitMq from "@/components/modeller/TestRabbitMq";
-import FormRecordModal from "@/components/form-record-creation/FormRecordModal";
-import LoginModal from "@/components/login/LoginModal";
+"use client";
+
+import LayoutComponent from '@/components/layout/LayoutComponent';
+import { Typography, Flex } from 'antd';
+import { getAuthInfo } from '@/utils/auth-utils';
+
+const { Text } = Typography;
+
 
 export default function Home() {
   return (
-    <div className="flex items-center justify-center w-full h-screen">
-      {/* <Modeller></Modeller> */}
-      <FormCreationModal></FormCreationModal>
-      {/* <FormRecordModal
-        formRecordData={null}
-        isForFormRecordCreation={true}
-        isReadOnly={false}
-        isForApproval={false}
-      ></FormRecordModal> */}
-      {/* <TestRabbitMq></TestRabbitMq> */}
-      {/* <LoginModal></LoginModal> */}
-    </div>
+    <>
+      <LayoutComponent>
+        <Flex
+          vertical
+          justify="center"
+          align="center"
+          style={{ height: '100%', width: '100%' }}
+        >
+          <Text style={{ fontSize: '24px', fontWeight: 'bold' }}>
+            Welcome, {`${getAuthInfo().userInfo.email}`}!
+          </Text>
+        </Flex>
+      </LayoutComponent>
+    </>
   );
 }
